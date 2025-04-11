@@ -13,6 +13,9 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,mdx}\" --cache"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.10",
+    "@ai-sdk/react": "^1.2.8",
+    "@clerk/nextjs": "^6.14.3",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -25,9 +28,11 @@
     "@radix-ui/react-select": "^2.1.6",
     "@radix-ui/react-slot": "^1.1.2",
     "@remixicon/react": "^4.6.0",
+    "ai": "^4.3.4",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.23.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.487.0",
     "next": "15.2.4",
@@ -35,8 +40,10 @@
     "react": "^19.1.0",
     "react-day-picker": "9.6.4",
     "react-dom": "^19.1.0",
+    "react-icons": "^5.5.0",
     "sonner": "^2.0.3",
-    "tailwind-merge": "^3.1.0"
+    "tailwind-merge": "^3.1.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
