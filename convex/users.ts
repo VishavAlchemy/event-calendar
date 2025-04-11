@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getUserId } from "./utils";
 
 export const store = mutation({
   args: {
@@ -74,34 +75,50 @@ export const getCurrentUser = query({
   },
 });
 
+export const getUserPreferences = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getUserId(ctx);
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), userId))
+      .first();
+    
+    return user?.preferences;
+  },
+});
+
 export const updateUserPreferences = mutation({
   args: {
     preferences: v.object({
       theme: v.union(v.literal("light"), v.literal("dark")),
       notifications: v.boolean(),
       emailNotifications: v.boolean(),
+      timezone: v.optional(v.string()),
     }),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-    
-    const clerkId = identity.tokenIdentifier;
-    
+    const userId = await getUserId(ctx);
     const user = await ctx.db
       .query("users")
-      .filter(q => q.eq(q.field("clerkId"), clerkId))
+      .filter((q) => q.eq(q.field("clerkId"), userId))
       .first();
-    
+
     if (!user) {
       throw new Error("User not found");
     }
-    
-    return await ctx.db.patch(user._id, {
-      preferences: args.preferences
+
+    // Merge new preferences with existing ones
+    const updatedPreferences = {
+      ...user.preferences,
+      ...args.preferences,
+    };
+
+    await ctx.db.patch(user._id, {
+      preferences: updatedPreferences,
     });
+
+    return updatedPreferences;
   },
 });
 

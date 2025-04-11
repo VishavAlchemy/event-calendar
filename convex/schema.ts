@@ -14,9 +14,22 @@ export default defineSchema({
             theme: v.union(v.literal("light"), v.literal("dark")),
             notifications: v.boolean(),
             emailNotifications: v.boolean(),
+            timezone: v.optional(v.string()),
         })),
     }).index("by_clerk_id", ["clerkId"]),
     
+  bugReports: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    description: v.string(),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    resolution: v.optional(v.string()),
+  }).index("by_status", ["status"])
+    .index("by_user", ["userId"]),
+
   monthlyIntentions: defineTable({
     userId: v.id("users"),
     text: v.string(),

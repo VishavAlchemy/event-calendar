@@ -86,11 +86,11 @@ const sidebarItems = [
     href: "/ai",
     icon: Brain,
   },
-  {
+/*   {
     name: "Calendar",
     href: "/calendar",
     icon: Calendar,
-  },
+  }, */
   {
     name: "Team",
     href: "/team",

@@ -48,8 +48,15 @@ export const calendarTool = createTool({
     color: z.string().optional().default('blue').describe('Color of the event'),
   }),
   execute: async function ({ title, description, startDate, startTime, duration, location, allDay, color }) {
-    // Set today's reference date to April 11, 2025
-    const TODAY_REFERENCE = new Date('2025-04-11T00:00:00.000-04:00'); // EST timezone
+    // Get current date in EST
+    const now = new Date();
+    const estOffset = -4; // EST offset from UTC
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const TODAY_REFERENCE = new Date(utc + (3600000 * estOffset));
+    
+    // Reset time to start of day
+    TODAY_REFERENCE.setHours(0, 0, 0, 0);
+    
     let baseDate;
     
     switch (startDate.toLowerCase()) {
