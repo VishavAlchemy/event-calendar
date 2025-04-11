@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { useMutation, useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 
 // Color mapping function
 const getColorClasses = (color: string) => {
@@ -61,24 +64,13 @@ const colorOptions = [
   { value: "amber", label: "Amber" },
 ]
 
-// Default intentions data
-const defaultMonthlyIntentions = [
-  { text: "Complete Q3 project milestones", color: "sky" },
-  { text: "Attend industry conference", color: "violet" },
-  { text: "Read 3 books on leadership", color: "emerald" },
-  { text: "Review financial targets", color: "rose" },
-]
-
-const defaultWeeklyIntentions = [
-  { text: "Prepare presentation for team meeting", color: "orange" },
-  { text: "Follow up with key clients", color: "amber" },
-  { text: "Complete sprint planning", color: "sky" },
-  { text: "Review team performance metrics", color: "violet" },
-]
-
 interface Intention {
+  _id: Id<"monthlyIntentions"> | Id<"weeklyIntentions">;
   text: string;
   color: string;
+  userId: Id<"users">;
+  createdAt: number;
+  updatedAt: number;
 }
 
 const sidebarItems = [
@@ -113,109 +105,102 @@ export function Sidebar() {
   const pathname = usePathname()
   const { isSignedIn, user } = useUser()
   
-  // Intentions state
-  const [monthlyIntentions, setMonthlyIntentions] = useState<Intention[]>([])
-  const [weeklyIntentions, setWeeklyIntentions] = useState<Intention[]>([])
+  // Convex queries and mutations
+  const monthlyIntentions = useQuery(api.intentions.getMonthlyIntentions) || []
+  const weeklyIntentions = useQuery(api.intentions.getWeeklyIntentions) || []
+  
+  const addMonthlyIntention = useMutation(api.intentions.addMonthlyIntention)
+  const addWeeklyIntention = useMutation(api.intentions.addWeeklyIntention)
+  const updateMonthlyIntention = useMutation(api.intentions.updateMonthlyIntention)
+  const updateWeeklyIntention = useMutation(api.intentions.updateWeeklyIntention)
+  const deleteMonthlyIntention = useMutation(api.intentions.deleteMonthlyIntention)
+  const deleteWeeklyIntention = useMutation(api.intentions.deleteWeeklyIntention)
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'monthly' | 'weekly'>('monthly')
   const [editingIntention, setEditingIntention] = useState<Intention | null>(null)
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
   
   // Form state
   const [intentionText, setIntentionText] = useState('')
   const [intentionColor, setIntentionColor] = useState('sky')
-
-  // Load intentions from localStorage on component mount
-  useEffect(() => {
-    const storedMonthly = localStorage.getItem('monthlyIntentions')
-    const storedWeekly = localStorage.getItem('weeklyIntentions')
-    
-    setMonthlyIntentions(storedMonthly ? JSON.parse(storedMonthly) : defaultMonthlyIntentions)
-    setWeeklyIntentions(storedWeekly ? JSON.parse(storedWeekly) : defaultWeeklyIntentions)
-  }, [])
-  
-  // Save intentions to localStorage when changed
-  useEffect(() => {
-    if (monthlyIntentions.length > 0) {
-      localStorage.setItem('monthlyIntentions', JSON.stringify(monthlyIntentions))
-    }
-    
-    if (weeklyIntentions.length > 0) {
-      localStorage.setItem('weeklyIntentions', JSON.stringify(weeklyIntentions))
-    }
-  }, [monthlyIntentions, weeklyIntentions])
   
   // Open modal for adding new intention
   const handleAddIntention = (type: 'monthly' | 'weekly') => {
     setModalType(type)
     setEditingIntention(null)
-    setEditingIndex(null)
     setIntentionText('')
     setIntentionColor('sky')
     setIsModalOpen(true)
   }
   
   // Open modal for editing existing intention
-  const handleEditIntention = (intention: Intention, index: number, type: 'monthly' | 'weekly') => {
+  const handleEditIntention = (intention: Intention, type: 'monthly' | 'weekly') => {
     setModalType(type)
     setEditingIntention(intention)
-    setEditingIndex(index)
     setIntentionText(intention.text)
     setIntentionColor(intention.color)
     setIsModalOpen(true)
   }
   
   // Save intention (new or edited)
-  const handleSaveIntention = () => {
+  const handleSaveIntention = async () => {
     if (!intentionText.trim()) return
     
-    const newIntention: Intention = {
-      text: intentionText.trim(),
-      color: intentionColor
-    }
-    
-    if (modalType === 'monthly') {
-      if (editingIndex !== null) {
-        // Edit existing intention
-        const updatedIntentions = [...monthlyIntentions]
-        updatedIntentions[editingIndex] = newIntention
-        setMonthlyIntentions(updatedIntentions)
+    try {
+      if (modalType === 'monthly') {
+        if (editingIntention) {
+          await updateMonthlyIntention({
+            id: editingIntention._id as Id<"monthlyIntentions">,
+            text: intentionText.trim(),
+            color: intentionColor,
+          })
+        } else {
+          await addMonthlyIntention({
+            text: intentionText.trim(),
+            color: intentionColor,
+          })
+        }
       } else {
-        // Add new intention
-        setMonthlyIntentions([...monthlyIntentions, newIntention])
+        if (editingIntention) {
+          await updateWeeklyIntention({
+            id: editingIntention._id as Id<"weeklyIntentions">,
+            text: intentionText.trim(),
+            color: intentionColor,
+          })
+        } else {
+          await addWeeklyIntention({
+            text: intentionText.trim(),
+            color: intentionColor,
+          })
+        }
       }
-    } else {
-      if (editingIndex !== null) {
-        // Edit existing intention
-        const updatedIntentions = [...weeklyIntentions]
-        updatedIntentions[editingIndex] = newIntention
-        setWeeklyIntentions(updatedIntentions)
-      } else {
-        // Add new intention
-        setWeeklyIntentions([...weeklyIntentions, newIntention])
-      }
+      
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error('Failed to save intention:', error)
     }
-    
-    setIsModalOpen(false)
   }
   
   // Delete intention
-  const handleDeleteIntention = () => {
-    if (editingIndex === null) return
+  const handleDeleteIntention = async () => {
+    if (!editingIntention) return
     
-    if (modalType === 'monthly') {
-      const updatedIntentions = [...monthlyIntentions]
-      updatedIntentions.splice(editingIndex, 1)
-      setMonthlyIntentions(updatedIntentions)
-    } else {
-      const updatedIntentions = [...weeklyIntentions]
-      updatedIntentions.splice(editingIndex, 1)
-      setWeeklyIntentions(updatedIntentions)
+    try {
+      if (modalType === 'monthly') {
+        await deleteMonthlyIntention({
+          id: editingIntention._id as Id<"monthlyIntentions">,
+        })
+      } else {
+        await deleteWeeklyIntention({
+          id: editingIntention._id as Id<"weeklyIntentions">,
+        })
+      }
+      
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error('Failed to delete intention:', error)
     }
-    
-    setIsModalOpen(false)
   }
 
   return (
@@ -266,18 +251,18 @@ export function Sidebar() {
             </Button>
           </div>
           <ul className="space-y-1">
-            {monthlyIntentions.map((intention, index) => {
+            {monthlyIntentions.map((intention) => {
               const colorClasses = getColorClasses(intention.color)
               return (
                 <li 
-                  key={`monthly-${index}`} 
+                  key={intention._id}
                   className={cn(
                     "text-sm rounded-md py-1 px-2 border cursor-pointer",
                     colorClasses.bg,
                     colorClasses.text,
                     colorClasses.border
                   )}
-                  onClick={() => handleEditIntention(intention, index, 'monthly')}
+                  onClick={() => handleEditIntention(intention, 'monthly')}
                 >
                   {intention.text}
                 </li>
@@ -301,18 +286,18 @@ export function Sidebar() {
             </Button>
           </div>
           <ul className="space-y-1">
-            {weeklyIntentions.map((intention, index) => {
+            {weeklyIntentions.map((intention) => {
               const colorClasses = getColorClasses(intention.color)
               return (
                 <li 
-                  key={`weekly-${index}`} 
+                  key={intention._id}
                   className={cn(
                     "text-sm rounded-md py-1 px-2 border cursor-pointer",
                     colorClasses.bg,
                     colorClasses.text,
                     colorClasses.border
                   )}
-                  onClick={() => handleEditIntention(intention, index, 'weekly')}
+                  onClick={() => handleEditIntention(intention, 'weekly')}
                 >
                   {intention.text}
                 </li>
