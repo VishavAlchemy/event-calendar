@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { Weather } from '@/components/weather';
+import { Session } from '@/components/session';
 
 export default function Chat() {
   const { messages, input, handleInputChange, handleSubmit } = useChat();
@@ -43,16 +44,32 @@ export default function Chat() {
                     </div>
                   );
                 }
+                if (toolName === 'startSession') {
+                  const { result } = toolInvocation;
+                  return (
+                    <div key={toolCallId}>
+                      <Session 
+                        onStartSession={async (tasks) => {
+                          // Session already started through the tool
+                          console.log('Session continued with tasks:', tasks);
+                        }}
+                      />
+                    </div>
+                  );
+                }
               } else {
                 return (
                   <div key={toolCallId}>
                     {toolName === 'displayWeather' ? (
                       <div>Loading weather...</div>
+                    ) : toolName === 'startSession' ? (
+                      <div>Initializing session...</div>
                     ) : null}
                   </div>
                 );
               }
             })}
+            
           </div>
           </div>
         ))}
