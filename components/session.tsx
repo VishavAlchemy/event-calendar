@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Play, Pause, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarEvent } from "@/components/event-calendar";
+import { CalendarEvent, EventColor } from "@/components/event-calendar";
 
 type Emotion = "Fulfilled" | "Flow" | "Calm" | "Courage" | "Stress" | "Afraid";
 
@@ -75,6 +75,7 @@ const getColorClasses = (color: string) => {
 };
 
 const durations = [
+    { label: "1sec", value: "0:01" },
     { label: "1min", value: "1:00" },
   { label: "25min", value: "25:00" },
   { label: "45min", value: "45:00" },
@@ -136,8 +137,11 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
       if (onStartSession) {
         await onStartSession(sessionState.tasks, sessionState.duration);
       }
-      await createCalendarEvent();
-      setSessionState(prev => ({ ...prev, status: 'running' }));
+      setSessionState(prev => ({ 
+        ...prev, 
+        status: 'running',
+        startTime: new Date().toISOString()
+      }));
     }
   };
 
@@ -167,8 +171,11 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
       if (onStartSession) {
         await onStartSession(sessionState.tasks, sessionState.duration);
       }
-      await createCalendarEvent();
-      setSessionState(prev => ({ ...prev, status: 'running', startTime: new Date().toISOString() }));
+      setSessionState(prev => ({ 
+        ...prev, 
+        status: 'running',
+        startTime: new Date().toISOString()
+      }));
     } else if (sessionState.status === 'running') {
       setSessionState(prev => ({ ...prev, status: 'paused' }));
     } else if (sessionState.status === 'paused') {
@@ -338,6 +345,23 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
                       text: reflection
                     });
                   }
+
+                  // Create calendar event for the completed session
+                  if (onCreateCalendarEvent) {
+                    const sessionStart = sessionState.startTime 
+                      ? new Date(sessionState.startTime)
+                      : new Date(Date.now() - getDurationInMinutes(sessionState.duration) * 60 * 1000);
+                    
+                    await onCreateCalendarEvent({
+                      title: `Focus Session: ${sessionState.tasks[0]}${sessionState.tasks.length > 1 ? ` +${sessionState.tasks.length - 1}` : ''}`,
+                      description: `Tasks:\n${sessionState.tasks.join('\n')}\n\nReflection:\n${reflection}${selectedEmotion ? `\n\nEmotion: ${selectedEmotion}` : ''}`,
+                      start: sessionStart,
+                      end: new Date(),
+                      color: getEmotionColor(selectedEmotion),
+                      allDay: false
+                    });
+                  }
+
                   // Reset the session state
                   setSessionState({
                     duration: "25:00",
@@ -357,4 +381,28 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
       </CardContent>
     </Card>
   );
+};
+
+const getDurationInMinutes = (duration: string): number => {
+  const [minutes, seconds] = duration.split(':').map(Number);
+  return minutes + seconds / 60;
+};
+
+const getEmotionColor = (emotion: Emotion | null): EventColor => {
+  switch (emotion) {
+    case 'Fulfilled':
+      return 'emerald';
+    case 'Flow':
+      return 'violet';
+    case 'Calm':
+      return 'sky';
+    case 'Courage':
+      return 'amber';
+    case 'Stress':
+      return 'orange';
+    case 'Afraid':
+      return 'rose';
+    default:
+      return 'sky';
+  }
 };

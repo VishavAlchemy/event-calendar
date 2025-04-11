@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Play, Pause, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type FocusTimerProps = {
   className?: string;
@@ -22,10 +22,16 @@ export function FocusTimer({
   tasks 
 }: FocusTimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration);
+  const hasCompletedRef = useRef(false);
 
   // Timer logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
+    
+    // Reset completion state when status changes to running
+    if (status === 'running') {
+      hasCompletedRef.current = false;
+    }
     
     if (status === 'running') {
       interval = setInterval(() => {
@@ -35,7 +41,12 @@ export function FocusTimer({
           
           if (totalSeconds <= 0) {
             clearInterval(interval);
-            onStatusChange('completed');
+            // Only trigger completion once
+            if (!hasCompletedRef.current) {
+              hasCompletedRef.current = true;
+              // Use setTimeout to avoid state updates during render
+              setTimeout(() => onStatusChange('completed'), 0);
+            }
             return '00:00';
           }
           
@@ -52,6 +63,7 @@ export function FocusTimer({
   // Reset timer when duration changes
   useEffect(() => {
     setTimeLeft(duration);
+    hasCompletedRef.current = false;
   }, [duration]);
 
   const mainTask = tasks[0];
