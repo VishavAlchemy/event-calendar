@@ -7,9 +7,7 @@ import { Id } from "@/convex/_generated/dataModel"
 import { useState, useMemo } from "react"
 import { EventCalendar, type CalendarEvent } from "@/components/event-calendar"
 import ThemeToggle from "@/components/theme-toggle"
-import { Button } from "@/components/ui/button"
-import { Clock } from "lucide-react"
-import { Session } from "@/components/session"
+import { Sidebar } from "@/components/ui/sidebar"
 
 // Helper function to convert Convex event to CalendarEvent
 const convertToCalendarEvent = (event: any): CalendarEvent => ({
@@ -26,7 +24,6 @@ const convertToCalendarEvent = (event: any): CalendarEvent => ({
 export default function Home() {
   const { user, isLoaded } = useUser()
   const userId = user?.id
-  const [showSession, setShowSession] = useState(false)
 
   // Stabilize query parameters to prevent infinite loops
   const queryParams = useMemo(() => {
@@ -47,7 +44,7 @@ export default function Home() {
   const updateEvent = useMutation(api.events.update)
   const deleteEvent = useMutation(api.events.remove)
 
-  const handleEventAdd = async (event: Omit<CalendarEvent, 'id'>) => {
+  const handleEventAdd = async (event: CalendarEvent) => {
     if (!userId) return
 
     // Ensure color is never undefined
@@ -107,36 +104,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen">
-      <aside className="hidden lg:block w-64 border-r bg-background">
-        <div className="space-y-4 py-4">
-          <div className="px-3 py-2">
-            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-              Focus Mode
-            </h2>
-            <div className="space-y-1">
-              <Button
-                variant="secondary"
-                className="w-full justify-start"
-                onClick={() => setShowSession(true)}
-              >
-                <Clock className="mr-2 h-4 w-4" />
-                Start Focus Session
-              </Button>
-            </div>
-          </div>
-        </div>
-      </aside>
       <div className="flex-1 flex flex-col p-1 sm:p-4 md:p-8 overflow-auto">
-        {showSession ? (
-          <div className="mb-8">
-            <Session
-              onStartSession={async () => {
-                // Handle session start
-              }}
-              onCreateCalendarEvent={handleEventAdd}
-            />
-          </div>
-        ) : null}
         <EventCalendar
           events={calendarEvents}
           onEventAdd={handleEventAdd}

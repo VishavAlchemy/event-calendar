@@ -11,8 +11,9 @@ type Emotion = "Fulfilled" | "Flow" | "Calm" | "Courage" | "Stress" | "Afraid";
 
 type SessionProps = {
   className?: string;
-  onStartSession?: (tasks: string[]) => Promise<void>;
+  onStartSession?: (tasks: string[], duration: string) => Promise<void>;
   onCreateCalendarEvent?: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
+  onSubmitReflection?: (reflection: { emotion: Emotion | null; text: string }) => Promise<void>;
 };
 
 type SessionState = {
@@ -74,6 +75,7 @@ const getColorClasses = (color: string) => {
 };
 
 const durations = [
+    { label: "1min", value: "1:00" },
   { label: "25min", value: "25:00" },
   { label: "45min", value: "45:00" },
   { label: "60min", value: "60:00" },
@@ -81,7 +83,7 @@ const durations = [
   { label: "120min", value: "120:00" },
 ];
 
-export const Session = ({ className, onStartSession, onCreateCalendarEvent }: SessionProps) => {
+export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSubmitReflection }: SessionProps) => {
   const [selectedEmotion, setSelectedEmotion] = useState<Emotion | null>(null);
   const [newTask, setNewTask] = useState("");
   const [reflection, setReflection] = useState("");
@@ -129,9 +131,13 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent }: Se
     }
   };
 
-  const handleSetupComplete = () => {
+  const handleSetupComplete = async () => {
     if (sessionState.tasks.length > 0) {
-      setSessionState(prev => ({ ...prev, status: 'idle' }));
+      if (onStartSession) {
+        await onStartSession(sessionState.tasks, sessionState.duration);
+      }
+      await createCalendarEvent();
+      setSessionState(prev => ({ ...prev, status: 'running' }));
     }
   };
 
@@ -159,7 +165,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent }: Se
   const toggleSession = async () => {
     if (sessionState.status === 'idle') {
       if (onStartSession) {
-        await onStartSession(sessionState.tasks);
+        await onStartSession(sessionState.tasks, sessionState.duration);
       }
       await createCalendarEvent();
       setSessionState(prev => ({ ...prev, status: 'running', startTime: new Date().toISOString() }));
@@ -316,12 +322,36 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent }: Se
                 );
               })}
             </div>
-            <Input 
-              value={reflection}
-              onChange={(e) => setReflection(e.target.value)}
-              placeholder="Share your thoughts on this session..." 
-              className="bg-muted/50 border-0 focus-visible:ring-0"
-            />
+            <div className="space-y-4">
+              <Input 
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                placeholder="Share your thoughts on this session..." 
+                className="bg-muted/50 border-0 focus-visible:ring-0"
+              />
+              <Button
+                className="w-full"
+                onClick={async () => {
+                  if (onSubmitReflection) {
+                    await onSubmitReflection({
+                      emotion: selectedEmotion,
+                      text: reflection
+                    });
+                  }
+                  // Reset the session state
+                  setSessionState({
+                    duration: "25:00",
+                    tasks: [],
+                    sessionType: 'focus',
+                    status: 'setup'
+                  });
+                  setReflection("");
+                  setSelectedEmotion(null);
+                }}
+              >
+                Submit Reflection & Complete Session
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
