@@ -48,21 +48,21 @@ export const calendarTool = createTool({
     color: z.string().optional().default('blue').describe('Color of the event'),
   }),
   execute: async function ({ title, description, startDate, startTime, duration, location, allDay, color }) {
-    // Parse the relative date in EST
-    const now = new Date();
+    // Set today's reference date to April 11, 2025
+    const TODAY_REFERENCE = new Date('2025-04-11T00:00:00.000-04:00'); // EST timezone
     let baseDate;
     
     switch (startDate.toLowerCase()) {
       case 'today':
-        baseDate = now;
+        baseDate = new Date(TODAY_REFERENCE);
         break;
       case 'tomorrow':
-        baseDate = new Date(now);
-        baseDate.setDate(now.getDate() + 1);
+        baseDate = new Date(TODAY_REFERENCE);
+        baseDate.setDate(TODAY_REFERENCE.getDate() + 1);
         break;
       case 'next week':
-        baseDate = new Date(now);
-        baseDate.setDate(now.getDate() + 7);
+        baseDate = new Date(TODAY_REFERENCE);
+        baseDate.setDate(TODAY_REFERENCE.getDate() + 7);
         break;
       default:
         // Try to parse as YYYY-MM-DD
