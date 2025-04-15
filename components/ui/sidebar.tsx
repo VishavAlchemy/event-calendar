@@ -1,6 +1,6 @@
 "use client"
 
-import { Brain, Calendar, Home, Plus, Settings, Users, Clock } from "lucide-react"
+import { Brain, Calendar, Home, Plus, Settings, Users, Clock, X } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import Image from "next/image"
@@ -86,11 +86,11 @@ const sidebarItems = [
     href: "/ai",
     icon: Brain,
   },
-/*   {
-    name: "Calendar",
-    href: "/calendar",
+   {
+    name: "Projects",
+    href: "/projects",
     icon: Calendar,
-  }, */
+  }, 
   {
     name: "Team",
     href: "/team",
@@ -107,6 +107,20 @@ export function Sidebar() {
   const pathname = usePathname()
   const { isSignedIn, user } = useUser()
   
+  // Daily Tasks State
+  const [newTask, setNewTask] = useState("")
+  const dailyTasks = useQuery(api.dailyTasks.getDailyTasks) || []
+  const addDailyTask = useMutation(api.dailyTasks.addDailyTask)
+  const toggleTaskCompletion = useMutation(api.dailyTasks.toggleTaskCompletion)
+  const deleteTask = useMutation(api.dailyTasks.deleteTask)
+
+  const handleAddDailyTask = async () => {
+    if (newTask.trim()) {
+      await addDailyTask({ text: newTask.trim() })
+      setNewTask("")
+    }
+  }
+
   // Focus Session State
   const [activeSession, setActiveSession] = useState<{
     duration: string;
@@ -266,35 +280,76 @@ export function Sidebar() {
           )
         })}
 
-        {/* Focus Mode Section */}
+        {/* Daily Tasks Section */}
         <div className="pt-6 px-3">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">Focus Mode</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground">Daily Tasks</h3>
           </div>
-          {showSession ? (
-            <Session
-              className="mb-4"
-              onStartSession={handleStartSession}
-            />
-          ) : activeSession ? (
-            <FocusTimer
-              className="mb-4"
-              duration={activeSession.duration}
-              status={activeSession.status}
-              tasks={activeSession.tasks}
-              onStatusChange={handleSessionStatusChange}
-              onCancel={handleSessionCancel}
-            />
-          ) : (
-            <Button
-              variant="secondary"
-              className="w-full justify-start"
-              onClick={() => setShowSession(true)}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              Start Focus Session
-            </Button>
-          )}
+          <div className="space-y-2">
+            {dailyTasks.map((task) => (
+              <div key={task._id} className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "size-5 p-0",
+                    task.completed && "text-emerald-500"
+                  )}
+                  onClick={() => toggleTaskCompletion({ id: task._id })}
+                >
+                  <div className={cn(
+                    "size-4 rounded border-2",
+                    task.completed ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground"
+                  )}>
+                    {task.completed && (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-3 text-white"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                </Button>
+                <span className={cn(
+                  "flex-1 text-sm",
+                  task.completed && "line-through text-muted-foreground"
+                )}>
+                  {task.text}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => deleteTask({ id: task._id })}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                placeholder="Add a task..."
+                className="flex-1"
+                onKeyPress={(e) => e.key === 'Enter' && handleAddDailyTask()}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleAddDailyTask}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       
         {/* Intentions of the Month */}
@@ -365,6 +420,37 @@ export function Sidebar() {
               )
             })}
           </ul>
+        </div>
+
+        {/* Focus Mode Section */}
+        <div className="pt-6 px-3">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">Focus Mode</h3>
+          </div>
+          {showSession ? (
+            <Session
+              className="mb-4"
+              onStartSession={handleStartSession}
+            />
+          ) : activeSession ? (
+            <FocusTimer
+              className="mb-4"
+              duration={activeSession.duration}
+              status={activeSession.status}
+              tasks={activeSession.tasks}
+              onStatusChange={handleSessionStatusChange}
+              onCancel={handleSessionCancel}
+            />
+          ) : (
+            <Button
+              variant="secondary"
+              className="w-full justify-start"
+              onClick={() => setShowSession(true)}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Start Focus Session
+            </Button>
+          )}
         </div>
       </nav>
       

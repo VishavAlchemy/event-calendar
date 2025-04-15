@@ -46,6 +46,14 @@ export default defineSchema({
     updatedAt: v.number(),
   }),
 
+  dailyTasks: defineTable({
+    userId: v.id("users"),
+    text: v.string(),
+    completed: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   events: defineTable({
     title: v.string(),
     description: v.optional(v.string()),

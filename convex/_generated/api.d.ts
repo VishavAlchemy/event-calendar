@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as bugReports from "../bugReports.js";
+import type * as dailyTasks from "../dailyTasks.js";
 import type * as events from "../events.js";
 import type * as intentions from "../intentions.js";
 import type * as users from "../users.js";
@@ -29,6 +30,7 @@ import type * as utils from "../utils.js";
  */
 declare const fullApi: ApiFromModules<{
   bugReports: typeof bugReports;
+  dailyTasks: typeof dailyTasks;
   events: typeof events;
   intentions: typeof intentions;
   users: typeof users;
