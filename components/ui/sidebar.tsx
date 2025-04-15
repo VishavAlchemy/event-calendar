@@ -86,14 +86,9 @@ const sidebarItems = [
     href: "/ai",
     icon: Brain,
   },
-   {
-    name: "Projects",
-    href: "/projects",
-    icon: Calendar,
-  }, 
   {
-    name: "Team",
-    href: "/team",
+    name: "Team (coming soon)",
+    href: "/",
     icon: Users,
   },
   {
