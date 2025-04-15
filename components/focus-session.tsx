@@ -27,30 +27,45 @@ const emotions: Array<{
 
 const getColorClasses = (color: string) => {
   const colorMap: Record<string, { bg: string; text: string; hover: string }> = {
-    blue: {
-      bg: "bg-blue-500/10",
-      text: "text-blue-500",
-      hover: "hover:bg-blue-500/20",
-    },
     sky: {
       bg: "bg-sky-500/10",
       text: "text-sky-500",
       hover: "hover:bg-sky-500/20",
+    },
+    amber: {
+      bg: "bg-amber-500/10",
+      text: "text-amber-500",
+      hover: "hover:bg-amber-500/20",
+    },
+    violet: {
+      bg: "bg-violet-500/10",
+      text: "text-violet-500",
+      hover: "hover:bg-violet-500/20",
+    },
+    rose: {
+      bg: "bg-rose-500/10",
+      text: "text-rose-500",
+      hover: "hover:bg-rose-500/20",
     },
     emerald: {
       bg: "bg-emerald-500/10",
       text: "text-emerald-500",
       hover: "hover:bg-emerald-500/20",
     },
-    yellow: {
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-500",
-      hover: "hover:bg-yellow-500/20",
-    },
     orange: {
       bg: "bg-orange-500/10",
       text: "text-orange-500",
       hover: "hover:bg-orange-500/20",
+    },
+    blue: {
+      bg: "bg-blue-500/10",
+      text: "text-blue-500",
+      hover: "hover:bg-blue-500/20",
+    },
+    yellow: {
+      bg: "bg-yellow-500/10",
+      text: "text-yellow-500",
+      hover: "hover:bg-yellow-500/20",
     },
     red: {
       bg: "bg-red-500/10",

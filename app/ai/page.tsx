@@ -3,18 +3,79 @@
 import { useChat } from '@ai-sdk/react';
 import { Weather } from '@/components/weather';
 import { Session } from '@/components/session';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { CalendarEvent } from '@/components/event-calendar';
+import { EventHistory } from '@/components/event-history';
+
+// Add color mapping function from sidebar
+const getColorClasses = (color: string) => {
+  const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+    sky: {
+      bg: "bg-sky-500/10",
+      text: "text-sky-700 dark:text-sky-300",
+      border: "border-sky-500/20",
+    },
+    violet: {
+      bg: "bg-violet-500/10",
+      text: "text-violet-700 dark:text-violet-300",
+      border: "border-violet-500/20",
+    },
+    emerald: {
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-700 dark:text-emerald-300",
+      border: "border-emerald-500/20",
+    },
+    rose: {
+      bg: "bg-rose-500/10",
+      text: "text-rose-700 dark:text-rose-300",
+      border: "border-rose-500/20",
+    },
+    orange: {
+      bg: "bg-orange-500/10",
+      text: "text-orange-700 dark:text-orange-300",
+      border: "border-orange-500/20",
+    },
+    amber: {
+      bg: "bg-amber-500/10",
+      text: "text-amber-700 dark:text-amber-300",
+      border: "border-amber-500/20",
+    },
+  }
+  
+  return colorMap[color] || { bg: "bg-gray-100", text: "text-gray-700", border: "border-gray-200" }
+}
 
 export default function Chat() {
   const { messages, input, handleInputChange, handleSubmit } = useChat();
   const { user } = useUser();
   const createEvent = useMutation(api.events.create);
   const processedToolCalls = useRef(new Set<string>());
+  const formRef = useRef<HTMLFormElement>(null);
+  const [showDirectSession, setShowDirectSession] = useState(false);
+
+  // Wrap the handleSubmit to also close the direct session
+  const wrappedHandleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    setShowDirectSession(false);
+    handleSubmit(e);
+  };
+
+  // Handle quick action buttons
+  const handleStartFocusSession = () => {
+    setShowDirectSession(true);
+  };
+
+  const handleLastSevenDays = () => {
+    handleInputChange({ target: { value: "What happened in the last 7 days" } } as React.ChangeEvent<HTMLInputElement>);
+    setTimeout(() => formRef.current?.requestSubmit(), 0);
+  };
+
+  const handleAddEvent = () => {
+    handleInputChange({ target: { value: "Add event" } } as React.ChangeEvent<HTMLInputElement>);
+  };
 
   const handleCreateCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
     if (!user?.id) {
@@ -48,6 +109,33 @@ export default function Chat() {
       <h1 className="text-2xl font-bold mb-10"></h1>
       
       <div className="flex-1 overflow-auto mb-4">
+        {showDirectSession && (
+          <div className="mb-4 p-3 rounded-lg backdrop-blur-sm bg-muted/5 mr-auto max-w-[80%]">
+            <div className="font-semibold mb-1 text-sm opacity-75">
+              Sage
+            </div>
+            <div className="whitespace-pre-wrap">
+              Starting a focus session for you...
+              <button 
+                onClick={() => setShowDirectSession(false)}
+                className="ml-2 text-xs text-muted-foreground hover:text-primary"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-4">
+              <Session 
+                onStartSession={async (tasks, duration) => {
+                  console.log('Session started with tasks:', tasks, 'duration:', duration);
+                }}
+                onCreateCalendarEvent={handleCreateCalendarEvent}
+                onSubmitReflection={async (reflection) => {
+                  console.log('Session reflection:', reflection);
+                }}
+              />
+            </div>
+          </div>
+        )}
         {messages.map((message) => (
           <div 
             key={message.id} 
@@ -128,6 +216,14 @@ export default function Chat() {
                       </div>
                     );
                   }
+                  if (toolName === 'fetchEventHistory') {
+                    const { result } = toolInvocation;
+                    return (
+                      <div key={toolCallId}>
+                        <EventHistory {...result} />
+                      </div>
+                    );
+                  }
                 }
                 return (
                   <div key={toolCallId}>
@@ -137,6 +233,8 @@ export default function Chat() {
                       <div>Initializing session...</div>
                     ) : toolName === 'createCalendarEvent' ? (
                       <div>Creating calendar event...</div>
+                    ) : toolName === 'fetchEventHistory' ? (
+                      <div>Fetching your calendar history...</div>
                     ) : null}
                   </div>
                 );
@@ -146,7 +244,29 @@ export default function Chat() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="relative">
+      {/* Quick Action Buttons */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button
+          onClick={handleStartFocusSession}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('emerald').bg} ${getColorClasses('emerald').text} ${getColorClasses('emerald').border} border`}
+        >
+          Start Focus Session
+        </button>
+        <button
+          onClick={handleLastSevenDays}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('violet').bg} ${getColorClasses('violet').text} ${getColorClasses('violet').border} border`}
+        >
+          What happened in the last 7 days
+        </button>
+        <button
+          onClick={handleAddEvent}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('sky').bg} ${getColorClasses('sky').text} ${getColorClasses('sky').border} border`}
+        >
+          Add event
+        </button>
+      </div>
+
+      <form ref={formRef} onSubmit={wrappedHandleSubmit} className="relative">
         <input
           className="w-full p-3 pr-12 bg-background/50 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           value={input}

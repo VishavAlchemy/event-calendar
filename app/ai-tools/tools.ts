@@ -131,8 +131,28 @@ export const calendarTool = createTool({
   },
 });
 
+export const eventHistoryTool = createTool({
+  description: 'Fetch calendar events for a specific time period',
+  parameters: z.object({
+    timePeriod: z.string().describe('Time period to fetch events for (e.g., "last week", "yesterday", "past month")'),
+    startDate: z.string().optional().describe('Start date for custom time range (YYYY-MM-DD format)'),
+    endDate: z.string().optional().describe('End date for custom time range (YYYY-MM-DD format)'),
+  }),
+  execute: async function ({ timePeriod, startDate, endDate }) {
+    // This function will be called by the AI, but actual data fetching happens in the component
+    // Return a placeholder that the component will use to know it needs to fetch data
+    return {
+      timePeriod,
+      startDate,
+      endDate,
+      requestId: `history_request_${Date.now()}`
+    };
+  },
+});
+
 export const tools = {
   displayWeather: weatherTool,
   startSession: sessionTool,
   createCalendarEvent: calendarTool,
+  fetchEventHistory: eventHistoryTool,
 };
