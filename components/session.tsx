@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Play, Pause, Clock } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarEvent, EventColor } from "@/components/event-calendar";
 
@@ -95,6 +95,18 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
     status: 'setup'
   });
   const [timeLeft, setTimeLeft] = useState(sessionState.duration);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Initialize audio on mount
+  useEffect(() => {
+    audioRef.current = new Audio('/sessionscompletefemale.mp3');
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
   
   // Timer logic
   useEffect(() => {
@@ -108,6 +120,10 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
           
           if (totalSeconds <= 0) {
             clearInterval(interval);
+            // Play completion sound
+            if (audioRef.current) {
+              audioRef.current.play().catch(err => console.error("Error playing audio:", err));
+            }
             setSessionState(prev => ({ ...prev, status: 'completed' }));
             return '00:00';
           }

@@ -91,6 +91,18 @@ export function FocusSession({ className }: { className?: string }) {
   
   const [timeLeft, setTimeLeft] = useState("");
   const hasCompletedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio on mount
+  useEffect(() => {
+    audioRef.current = new Audio('/sessionscompletefemale.mp3');
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // Set initial time
   useEffect(() => {
@@ -121,6 +133,10 @@ export function FocusSession({ className }: { className?: string }) {
             // Only trigger completion once
             if (!hasCompletedRef.current) {
               hasCompletedRef.current = true;
+              // Play completion sound
+              if (audioRef.current) {
+                audioRef.current.play().catch(err => console.error("Error playing audio:", err));
+              }
               // Use setTimeout to avoid state updates during render
               setTimeout(() => updateSessionStatus('completed'), 0);
             }
