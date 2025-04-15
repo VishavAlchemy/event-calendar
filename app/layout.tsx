@@ -97,7 +97,7 @@ export default function RootLayout({
           <UserSync />
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
           >
