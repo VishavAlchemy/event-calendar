@@ -8,6 +8,10 @@ import { useState, useMemo } from "react"
 import { EventCalendar, type CalendarEvent } from "@/components/event-calendar"
 import ThemeToggle from "@/components/theme-toggle"
 import { Sidebar } from "@/components/ui/sidebar"
+import { useFocus } from "@/contexts/focus-context"
+import { FocusSession } from "@/components/focus-session"
+import { FocusModal } from "@/components/focus-modal"
+import { Dialog } from "@/components/ui/dialog"
 
 // Helper function to convert Convex event to CalendarEvent
 const convertToCalendarEvent = (event: any): CalendarEvent => ({
@@ -21,10 +25,21 @@ const convertToCalendarEvent = (event: any): CalendarEvent => ({
   location: event.location,
 })
 
+// A component to wrap the modal with context
+function FocusModalWrapper() {
+  const { isModalOpen, closeFocusModal } = useFocus();
+  
+  return (
+    <Dialog open={isModalOpen} onOpenChange={closeFocusModal}>
+      <FocusModal />
+    </Dialog>
+  );
+}
+
 export default function Home() {
   const { user, isLoaded } = useUser()
   const userId = user?.id
-
+  
   // Stabilize query parameters to prevent infinite loops
   const queryParams = useMemo(() => {
     if (!userId) return "skip";
@@ -103,7 +118,8 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen">
+    <>
+      <FocusModalWrapper />
       <div className="flex-1 flex flex-col p-1 sm:p-4 md:p-8 overflow-auto">
         <EventCalendar
           events={calendarEvents}
@@ -115,6 +131,7 @@ export default function Home() {
           <ThemeToggle />
         </div>
       </div>
-    </div>
+      <FocusSession />
+    </>
   )
 }

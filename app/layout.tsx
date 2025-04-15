@@ -13,6 +13,9 @@ import { useAuth, useUser } from "@clerk/nextjs"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { ClerkProvider } from "@clerk/nextjs"
 import { Sidebar } from "@/components/ui/sidebar"
+import { FocusProvider } from "@/contexts/focus-context"
+import { CalendarEvent } from "@/components/event-calendar"
+
 const fontSans = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -43,8 +46,41 @@ function UserSync() {
 
   return null;
 }
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+// This component will be rendered after the Convex provider is initialized
+function AppContent({ children }: { children: React.ReactNode }) {
+  const createEvent = useMutation(api.events.create);
+  const { user } = useUser();
+
+  const handleCreateCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
+    if (!user?.id) return;
+
+    await createEvent({
+      title: event.title,
+      description: event.description || "",
+      start: new Date(event.start).getTime(),
+      end: new Date(event.end).getTime(),
+      allDay: event.allDay || false,
+      color: event.color || "violet",
+      location: event.location || "",
+      userId: user.id,
+    });
+  };
+
+  return (
+    <FocusProvider onCreateCalendarEvent={handleCreateCalendarEvent}>
+      <div className="flex h-screen">
+        <Sidebar />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+      <Toaster />
+    </FocusProvider>
+  );
+}
+
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export default function RootLayout({
   children,
@@ -57,26 +93,19 @@ export default function RootLayout({
         className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}
       >       
        <ClerkProvider>
-
- <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="flex h-screen">
-            <Sidebar />
-            <main className="flex-1 overflow-auto">
+        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <AppContent>
               {children}
-            </main>
-          </div>
-          <Toaster />
-        </ThemeProvider>
+            </AppContent>
+          </ThemeProvider>
         </ConvexProviderWithClerk>
         </ClerkProvider>
-
       </body>
     </html>
   )

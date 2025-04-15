@@ -16,8 +16,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
-import { FocusTimer } from "@/components/focus-timer"
-import { Session } from "@/components/session"
+import { useContext } from "react"
+import { useFocus } from "@/contexts/focus-context"
 
 // Color mapping function
 const getColorClasses = (color: string) => {
@@ -88,7 +88,7 @@ const sidebarItems = [
   },
   {
     name: "Team (coming soon)",
-    href: "/",
+    href: "/team",
     icon: Users,
   },
   {
@@ -101,6 +101,7 @@ const sidebarItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { isSignedIn, user } = useUser()
+  const { openFocusModal } = useFocus()
   
   // Daily Tasks State
   const [newTask, setNewTask] = useState("")
@@ -115,34 +116,6 @@ export function Sidebar() {
       setNewTask("")
     }
   }
-
-  // Focus Session State
-  const [activeSession, setActiveSession] = useState<{
-    duration: string;
-    tasks: string[];
-    status: 'running' | 'paused' | 'completed';
-  } | null>(null);
-  const [showSession, setShowSession] = useState(false);
-
-  // Focus Session Handlers
-  const handleSessionStatusChange = (status: 'running' | 'paused' | 'completed') => {
-    if (activeSession) {
-      setActiveSession({ ...activeSession, status });
-    }
-  };
-
-  const handleSessionCancel = () => {
-    setActiveSession(null);
-  };
-
-  const handleStartSession = async (tasks: string[], duration: string) => {
-    setActiveSession({
-      tasks,
-      duration,
-      status: 'running'
-    });
-    setShowSession(false);
-  };
 
   // Convex queries and mutations
   const monthlyIntentions = useQuery(api.intentions.getMonthlyIntentions) || []
@@ -417,35 +390,19 @@ export function Sidebar() {
           </ul>
         </div>
 
-        {/* Focus Mode Section */}
+        {/* Focus Mode Section - Updated */}
         <div className="pt-6 px-3">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-muted-foreground">Focus Mode</h3>
           </div>
-          {showSession ? (
-            <Session
-              className="mb-4"
-              onStartSession={handleStartSession}
-            />
-          ) : activeSession ? (
-            <FocusTimer
-              className="mb-4"
-              duration={activeSession.duration}
-              status={activeSession.status}
-              tasks={activeSession.tasks}
-              onStatusChange={handleSessionStatusChange}
-              onCancel={handleSessionCancel}
-            />
-          ) : (
-            <Button
-              variant="secondary"
-              className="w-full justify-start"
-              onClick={() => setShowSession(true)}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              Start Focus Session
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            className="w-full justify-start"
+            onClick={openFocusModal}
+          >
+            <Clock className="mr-2 h-4 w-4" />
+            Start Focus Session
+          </Button>
         </div>
       </nav>
       
