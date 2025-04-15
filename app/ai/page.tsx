@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useRef, useState } from 'react';
 import { CalendarEvent } from '@/components/event-calendar';
 import { EventHistory } from '@/components/event-history';
+import { eb } from '@/lib/fonts'; 
 
 // Add color mapping function from sidebar
 const getColorClasses = (color: string) => {
@@ -109,6 +110,11 @@ export default function Chat() {
       <h1 className="text-2xl font-bold mb-10"></h1>
       
       <div className="flex-1 overflow-auto mb-4">
+        {messages.length === 0 && !showDirectSession && (
+          <div className="flex items-center justify-center h-full">
+            <h2 className={`${eb.className} text-3xl  text-muted-foreground/70`}>Execute Plan Focus</h2>
+          </div>
+        )}
         {showDirectSession && (
           <div className="mb-4 p-3 rounded-lg backdrop-blur-sm bg-muted/5 mr-auto max-w-[80%]">
             <div className="font-semibold mb-1 text-sm opacity-75">
