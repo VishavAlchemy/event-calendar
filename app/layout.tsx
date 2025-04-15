@@ -94,6 +94,7 @@ export default function RootLayout({
       >       
        <ClerkProvider>
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+          <UserSync />
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
