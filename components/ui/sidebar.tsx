@@ -87,11 +87,11 @@ const sidebarItems = [
     href: "/ai",
     icon: Brain,
   },
-  {
+/*   {
     name: "Team (coming soon)",
     href: "/team",
     icon: Users,
-  },
+  }, */
   {
     name: "Settings",
     href: "/settings",
@@ -110,6 +110,9 @@ export function Sidebar() {
   const addDailyTask = useMutation(api.dailyTasks.addDailyTask)
   const toggleTaskCompletion = useMutation(api.dailyTasks.toggleTaskCompletion)
   const deleteTask = useMutation(api.dailyTasks.deleteTask)
+
+  // Monthly intentions collapse state
+  const [monthlyIntentionsExpanded, setMonthlyIntentionsExpanded] = useState(true)
 
   const handleAddDailyTask = async () => {
     if (newTask.trim()) {
@@ -250,7 +253,98 @@ export function Sidebar() {
             )
           })}
 
-          {/* Daily Tasks Section */}
+          {/* Intentions of the Month */}
+          <div className="pt-6 px-3">
+            <div className="flex justify-between items-center mb-2">
+              <Button 
+                variant="ghost" 
+                className="p-0 h-auto text-sm font-semibold text-muted-foreground flex items-center gap-1"
+                onClick={() => setMonthlyIntentionsExpanded(!monthlyIntentionsExpanded)}
+              >
+                <h3>Intentions of the Month</h3>
+                <svg 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={cn("transition-transform", monthlyIntentionsExpanded ? "rotate-0" : "rotate-[-90deg]")}
+                >
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="size-6 rounded-full p-0"
+                onClick={() => handleAddIntention('monthly')}
+              >
+                <Plus className="size-4 text-muted-foreground" />
+                <span className="sr-only">Add monthly intention</span>
+              </Button>
+            </div>
+            {monthlyIntentionsExpanded && (
+              <ul className="space-y-1">
+                {monthlyIntentions.map((intention) => {
+                  const colorClasses = getColorClasses(intention.color)
+                  return (
+                    <li 
+                      key={intention._id}
+                      className={cn(
+                        "text-sm rounded-md py-1 px-2 border cursor-pointer",
+                        colorClasses.bg,
+                        colorClasses.text,
+                        colorClasses.border
+                      )}
+                      onClick={() => handleEditIntention(intention, 'monthly')}
+                    >
+                      {intention.text}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+          
+          {/* Intentions of the Week */}
+          <div className={cn(
+            "px-3", 
+            monthlyIntentionsExpanded ? "pt-6" : "pt-2"
+          )}>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Week</h3>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="size-6 rounded-full p-0"
+                onClick={() => handleAddIntention('weekly')}
+              >
+                <Plus className="size-4 text-muted-foreground" />
+                <span className="sr-only">Add weekly intention</span>
+              </Button>
+            </div>
+            <ul className="space-y-1">
+              {weeklyIntentions.map((intention) => {
+                const colorClasses = getColorClasses(intention.color)
+                return (
+                  <li 
+                    key={intention._id}
+                    className={cn(
+                      "text-sm rounded-md py-1 px-2 border cursor-pointer",
+                      colorClasses.bg,
+                      colorClasses.text,
+                      colorClasses.border
+                    )}
+                    onClick={() => handleEditIntention(intention, 'weekly')}
+                  >
+                    {intention.text}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+
+          {/* Daily Tasks Section - Moved below Weekly Intentions */}
           <div className="pt-6 px-3">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-semibold text-muted-foreground">Daily Tasks</h3>
@@ -321,78 +415,8 @@ export function Sidebar() {
               </div>
             </div>
           </div>
-        
-          {/* Intentions of the Month */}
-          <div className="pt-6 px-3">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Month</h3>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="size-6 rounded-full p-0"
-                onClick={() => handleAddIntention('monthly')}
-              >
-                <Plus className="size-4 text-muted-foreground" />
-                <span className="sr-only">Add monthly intention</span>
-              </Button>
-            </div>
-            <ul className="space-y-1">
-              {monthlyIntentions.map((intention) => {
-                const colorClasses = getColorClasses(intention.color)
-                return (
-                  <li 
-                    key={intention._id}
-                    className={cn(
-                      "text-sm rounded-md py-1 px-2 border cursor-pointer",
-                      colorClasses.bg,
-                      colorClasses.text,
-                      colorClasses.border
-                    )}
-                    onClick={() => handleEditIntention(intention, 'monthly')}
-                  >
-                    {intention.text}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-          
-          {/* Intentions of the Week */}
-          <div className="pt-6 px-3">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Week</h3>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="size-6 rounded-full p-0"
-                onClick={() => handleAddIntention('weekly')}
-              >
-                <Plus className="size-4 text-muted-foreground" />
-                <span className="sr-only">Add weekly intention</span>
-              </Button>
-            </div>
-            <ul className="space-y-1">
-              {weeklyIntentions.map((intention) => {
-                const colorClasses = getColorClasses(intention.color)
-                return (
-                  <li 
-                    key={intention._id}
-                    className={cn(
-                      "text-sm rounded-md py-1 px-2 border cursor-pointer",
-                      colorClasses.bg,
-                      colorClasses.text,
-                      colorClasses.border
-                    )}
-                    onClick={() => handleEditIntention(intention, 'weekly')}
-                  >
-                    {intention.text}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
 
-          {/* Focus Mode Section - Updated */}
+          {/* Focus Mode Section */}
           <div className="pt-6 px-3">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-semibold text-muted-foreground">Focus Mode</h3>
