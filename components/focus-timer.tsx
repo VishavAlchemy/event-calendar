@@ -1,120 +1,61 @@
+"use client";
+
 import { cn } from "@/lib/utils";
+import { useFocus } from "@/contexts/focus-context";
+import { Clock, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Play, Pause, X } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
 
-type FocusTimerProps = {
-  className?: string;
-  duration: string;
-  status: 'setup' | 'idle' | 'ready' | 'running' | 'paused' | 'completed';
-  onStatusChange: (status: 'running' | 'paused' | 'completed') => void;
-  onCancel: () => void;
-  tasks: string[];
-};
-
-export function FocusTimer({ 
-  className, 
-  duration, 
-  status, 
-  onStatusChange,
-  onCancel,
-  tasks 
-}: FocusTimerProps) {
-  const [timeLeft, setTimeLeft] = useState(duration);
-  const hasCompletedRef = useRef(false);
-
-  // Timer logic
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    // Reset completion state when status changes to running
-    if (status === 'running') {
-      hasCompletedRef.current = false;
-    }
-    
-    if (status === 'running') {
-      interval = setInterval(() => {
-        setTimeLeft(current => {
-          const [mins, secs] = current.split(':').map(Number);
-          const totalSeconds = mins * 60 + secs - 1;
-          
-          if (totalSeconds <= 0) {
-            clearInterval(interval);
-            // Only trigger completion once
-            if (!hasCompletedRef.current) {
-              hasCompletedRef.current = true;
-              // Use setTimeout to avoid state updates during render
-              setTimeout(() => onStatusChange('completed'), 0);
-            }
-            return '00:00';
-          }
-          
-          const newMins = Math.floor(totalSeconds / 60);
-          const newSecs = totalSeconds % 60;
-          return `${newMins.toString().padStart(2, '0')}:${newSecs.toString().padStart(2, '0')}`;
-        });
-      }, 1000);
-    }
-    
-    return () => clearInterval(interval);
-  }, [status, onStatusChange]);
-
-  // Reset timer when duration changes
-  useEffect(() => {
-    setTimeLeft(duration);
-    hasCompletedRef.current = false;
-  }, [duration]);
-
-  const mainTask = tasks[0];
-  const remainingTasks = tasks.length - 1;
-
-  // Don't show the timer for setup or completed states
-  if (status === 'setup' || status === 'completed') {
+export function FocusTimer({ className }: { className?: string }) {
+  const { 
+    sessionState, 
+    updateSessionStatus,
+    cancelSession,
+    timeLeft
+  } = useFocus();
+  
+  // If there's no active session, don't render anything
+  if (!sessionState || sessionState.status === 'completed') {
     return null;
   }
-
+  
+  // Get the main task name to display
+  const mainTask = sessionState.tasks[0] || "Focus Session";
+  const remainingTasks = sessionState.tasks.length - 1;
+  
+  // Get the appropriate status text and action button
+  const isRunning = sessionState.status === 'running';
+  
   return (
-    <Card className={cn("p-4", className)}>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium leading-none">Current Focus</p>
-            <p className="text-sm text-muted-foreground truncate">
-              {mainTask}
-              {remainingTasks > 0 && ` +${remainingTasks}`}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onCancel}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold tracking-tighter">{timeLeft}</span>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => onStatusChange(status === 'running' ? 'paused' : 'running')}
-            className={cn(
-              "h-8 w-8 rounded-full",
-              status === 'running'
-                ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20"
-                : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-            )}
-          >
-            {status === 'running' ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+    <div className={cn(
+      "flex items-center justify-center gap-3 px-4 py-2 bg-background/80 backdrop-blur-sm rounded-full border shadow-sm",
+      className
+    )}>
+      <div className="flex items-center gap-2">
+        <Clock className="h-4 w-4 text-primary" />
+        <div className="font-mono text-sm font-medium">{timeLeft}</div>
       </div>
-    </Card>
+      <div className="text-sm truncate max-w-[180px]">
+        {mainTask}
+        {remainingTasks > 0 && <span className="text-muted-foreground"> +{remainingTasks}</span>}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6"
+          onClick={() => updateSessionStatus(isRunning ? 'paused' : 'running')}
+        >
+          {isRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 text-destructive hover:text-destructive"
+          onClick={cancelSession}
+        >
+          <span className="text-xs">×</span>
+        </Button>
+      </div>
+    </div>
   );
 } 

@@ -6,6 +6,7 @@ import { Plus, Play, Pause, Clock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarEvent, EventColor } from "@/components/event-calendar";
+import { useFocus } from "@/contexts/focus-context";
 
 type Emotion = "Fulfilled" | "Flow" | "Calm" | "Courage" | "Stress" | "Afraid";
 
@@ -88,14 +89,28 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
   const [selectedEmotion, setSelectedEmotion] = useState<Emotion | null>(null);
   const [newTask, setNewTask] = useState("");
   const [reflection, setReflection] = useState("");
-  const [sessionState, setSessionState] = useState<SessionState>({
+  const [localSessionState, setLocalSessionState] = useState<SessionState>({
     duration: "25:00",
     tasks: [],
     sessionType: 'focus',
     status: 'setup'
   });
-  const [timeLeft, setTimeLeft] = useState(sessionState.duration);
+  
+  // Use the global focus context
+  const {
+    startSession: startGlobalSession,
+    sessionState: globalSessionState,
+    timeLeft,
+    updateSessionStatus,
+    setSelectedEmotion: setGlobalEmotion,
+    setReflectionText,
+    createCalendarEvent: createGlobalEvent
+  } = useFocus();
+  
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Use global state if it exists, otherwise use local state
+  const activeSessionState = globalSessionState || localSessionState;
   
   // Initialize audio on mount
   useEffect(() => {
@@ -112,35 +127,38 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (sessionState.status === 'running') {
+    if (activeSessionState.status === 'running') {
       interval = setInterval(() => {
-        setTimeLeft(current => {
-          const [mins, secs] = current.split(':').map(Number);
-          const totalSeconds = mins * 60 + secs - 1;
-          
-          if (totalSeconds <= 0) {
-            clearInterval(interval);
-            // Play completion sound
-            if (audioRef.current) {
-              audioRef.current.play().catch(err => console.error("Error playing audio:", err));
+        setLocalSessionState(prev => ({
+          ...prev,
+          timeLeft: (current: string) => {
+            const [mins, secs] = current.split(':').map(Number);
+            const totalSeconds = mins * 60 + secs - 1;
+            
+            if (totalSeconds <= 0) {
+              clearInterval(interval);
+              // Play completion sound
+              if (audioRef.current) {
+                audioRef.current.play().catch(err => console.error("Error playing audio:", err));
+              }
+              setLocalSessionState(prev => ({ ...prev, status: 'completed' }));
+              return '00:00';
             }
-            setSessionState(prev => ({ ...prev, status: 'completed' }));
-            return '00:00';
+            
+            const newMins = Math.floor(totalSeconds / 60);
+            const newSecs = totalSeconds % 60;
+            return `${newMins.toString().padStart(2, '0')}:${newSecs.toString().padStart(2, '0')}`;
           }
-          
-          const newMins = Math.floor(totalSeconds / 60);
-          const newSecs = totalSeconds % 60;
-          return `${newMins.toString().padStart(2, '0')}:${newSecs.toString().padStart(2, '0')}`;
-        });
+        }));
       }, 1000);
     }
     
     return () => clearInterval(interval);
-  }, [sessionState.status]);
+  }, [activeSessionState.status]);
 
   const handleAddTask = () => {
     if (newTask.trim()) {
-      setSessionState(prev => ({
+      setLocalSessionState(prev => ({
         ...prev,
         tasks: [...prev.tasks, newTask.trim()]
       }));
@@ -149,11 +167,17 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
   };
 
   const handleSetupComplete = async () => {
-    if (sessionState.tasks.length > 0) {
+    if (localSessionState.tasks.length > 0) {
+      // Call local callback if provided
       if (onStartSession) {
-        await onStartSession(sessionState.tasks, sessionState.duration);
+        await onStartSession(localSessionState.tasks, localSessionState.duration);
       }
-      setSessionState(prev => ({ 
+      
+      // Start the global focus session
+      startGlobalSession(localSessionState.tasks, localSessionState.duration);
+      
+      // Update local state too for UI consistency
+      setLocalSessionState(prev => ({ 
         ...prev, 
         status: 'running',
         startTime: new Date().toISOString()
@@ -162,18 +186,25 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
   };
 
   const createCalendarEvent = async () => {
+    // Use global event creation if available
+    if (globalSessionState) {
+      await createGlobalEvent();
+      return;
+    }
+    
+    // Otherwise use local event creation
     if (!onCreateCalendarEvent) return;
 
     const now = new Date();
-    const [hours, minutes] = sessionState.duration.split(':').map(Number);
+    const [hours, minutes] = localSessionState.duration.split(':').map(Number);
     const endTime = new Date(now.getTime() + (hours * 60 + minutes) * 60 * 1000);
 
-    const description = sessionState.tasks.map((task, index) => 
+    const description = localSessionState.tasks.map((task, index) => 
       `${index + 1}. ${task}`
     ).join('\n');
 
     await onCreateCalendarEvent({
-      title: `Focus Session: ${sessionState.tasks[0]}${sessionState.tasks.length > 1 ? ' +' + (sessionState.tasks.length - 1) : ''}`,
+      title: `Focus Session: ${localSessionState.tasks[0]}${localSessionState.tasks.length > 1 ? ' +' + (localSessionState.tasks.length - 1) : ''}`,
       description,
       start: now,
       end: endTime,
@@ -183,23 +214,30 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
   };
 
   const toggleSession = async () => {
-    if (sessionState.status === 'idle') {
+    if (globalSessionState) {
+      // If global session exists, use that
+      updateSessionStatus(globalSessionState.status === 'running' ? 'paused' : 'running');
+      return;
+    }
+    
+    // Otherwise use local state
+    if (localSessionState.status === 'idle') {
       if (onStartSession) {
-        await onStartSession(sessionState.tasks, sessionState.duration);
+        await onStartSession(localSessionState.tasks, localSessionState.duration);
       }
-      setSessionState(prev => ({ 
+      setLocalSessionState(prev => ({ 
         ...prev, 
         status: 'running',
         startTime: new Date().toISOString()
       }));
-    } else if (sessionState.status === 'running') {
-      setSessionState(prev => ({ ...prev, status: 'paused' }));
-    } else if (sessionState.status === 'paused') {
-      setSessionState(prev => ({ ...prev, status: 'running' }));
+    } else if (localSessionState.status === 'running') {
+      setLocalSessionState(prev => ({ ...prev, status: 'paused' }));
+    } else if (localSessionState.status === 'paused') {
+      setLocalSessionState(prev => ({ ...prev, status: 'running' }));
     }
   };
 
-  if (sessionState.status === 'setup') {
+  if (activeSessionState.status === 'setup') {
     return (
       <Card className={cn("w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", className)}>
         <CardHeader>
@@ -213,12 +251,11 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
                     key={value}
                     variant="outline"
                     onClick={() => {
-                      setSessionState(prev => ({ ...prev, duration: value }));
-                      setTimeLeft(value);
+                      setLocalSessionState(prev => ({ ...prev, duration: value }));
                     }}
                     className={cn(
                       "rounded-full",
-                      sessionState.duration === value && "bg-primary text-primary-foreground"
+                      localSessionState.duration === value && "bg-primary text-primary-foreground"
                     )}
                   >
                     {label}
@@ -230,7 +267,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Add Your Tasks</h3>
               <div className="space-y-2">
-                {sessionState.tasks.map((task, index) => (
+                {localSessionState.tasks.map((task, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <div className="flex-1 p-2 bg-muted/50 rounded-md">{task}</div>
                     <Button
@@ -238,7 +275,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
                       size="sm"
                       className="text-destructive"
                       onClick={() => {
-                        setSessionState(prev => ({
+                        setLocalSessionState(prev => ({
                           ...prev,
                           tasks: prev.tasks.filter((_, i) => i !== index)
                         }));
@@ -268,7 +305,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
 
             <Button
               className="w-full"
-              disabled={sessionState.tasks.length === 0}
+              disabled={localSessionState.tasks.length === 0}
               onClick={handleSetupComplete}
             >
               Start Session
@@ -284,7 +321,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
       <CardHeader>
         <h2 className="text-lg font-semibold text-foreground">Current Session</h2>
         <div className="space-y-2 mt-4">
-          {sessionState.tasks.map((task, index) => (
+          {localSessionState.tasks.map((task, index) => (
             <Button 
               key={index}
               variant="secondary" 
@@ -305,12 +342,12 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
               onClick={toggleSession}
               className={cn(
                 "rounded-full h-8 w-8",
-                sessionState.status === 'running'
+                activeSessionState.status === 'running'
                   ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20"
                   : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
               )}
             >
-              {sessionState.status === 'running' ? (
+              {activeSessionState.status === 'running' ? (
                 <Pause className="h-4 w-4" />
               ) : (
                 <Play className="h-4 w-4" />
@@ -319,7 +356,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
           </div>
         </div>
 
-        {sessionState.status === 'completed' && (
+        {activeSessionState.status === 'completed' && (
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Session Complete! How do you feel & what reflections do you have?
@@ -364,13 +401,13 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
 
                   // Create calendar event for the completed session
                   if (onCreateCalendarEvent) {
-                    const sessionStart = sessionState.startTime 
-                      ? new Date(sessionState.startTime)
-                      : new Date(Date.now() - getDurationInMinutes(sessionState.duration) * 60 * 1000);
+                    const sessionStart = localSessionState.startTime 
+                      ? new Date(localSessionState.startTime)
+                      : new Date(Date.now() - getDurationInMinutes(localSessionState.duration) * 60 * 1000);
                     
                     await onCreateCalendarEvent({
-                      title: `Focus Session: ${sessionState.tasks[0]}${sessionState.tasks.length > 1 ? ` +${sessionState.tasks.length - 1}` : ''}`,
-                      description: `Tasks:\n${sessionState.tasks.join('\n')}\n\nReflection:\n${reflection}${selectedEmotion ? `\n\nEmotion: ${selectedEmotion}` : ''}`,
+                      title: `Focus Session: ${localSessionState.tasks[0]}${localSessionState.tasks.length > 1 ? ` +${localSessionState.tasks.length - 1}` : ''}`,
+                      description: `Tasks:\n${localSessionState.tasks.join('\n')}\n\nReflection:\n${reflection}${selectedEmotion ? `\n\nEmotion: ${selectedEmotion}` : ''}`,
                       start: sessionStart,
                       end: new Date(),
                       color: getEmotionColor(selectedEmotion),
@@ -379,7 +416,7 @@ export const Session = ({ className, onStartSession, onCreateCalendarEvent, onSu
                   }
 
                   // Reset the session state
-                  setSessionState({
+                  setLocalSessionState({
                     duration: "25:00",
                     tasks: [],
                     sessionType: 'focus',

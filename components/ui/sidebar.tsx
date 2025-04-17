@@ -18,6 +18,7 @@ import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 import { useContext } from "react"
 import { useFocus } from "@/contexts/focus-context"
+import { FocusModal } from "@/components/focus-modal"
 
 // Color mapping function
 const getColorClasses = (color: string) => {
@@ -101,7 +102,7 @@ const sidebarItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { isSignedIn, user } = useUser()
-  const { openFocusModal } = useFocus()
+  const { openFocusModal, isModalOpen: isFocusModalOpen, closeFocusModal } = useFocus()
   
   // Daily Tasks State
   const [newTask, setNewTask] = useState("")
@@ -129,7 +130,7 @@ export function Sidebar() {
   const deleteWeeklyIntention = useMutation(api.intentions.deleteWeeklyIntention)
   
   // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isIntentionModalOpen, setIsIntentionModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'monthly' | 'weekly'>('monthly')
   const [editingIntention, setEditingIntention] = useState<Intention | null>(null)
   
@@ -143,7 +144,7 @@ export function Sidebar() {
     setEditingIntention(null)
     setIntentionText('')
     setIntentionColor('sky')
-    setIsModalOpen(true)
+    setIsIntentionModalOpen(true)
   }
   
   // Open modal for editing existing intention
@@ -152,7 +153,7 @@ export function Sidebar() {
     setEditingIntention(intention)
     setIntentionText(intention.text)
     setIntentionColor(intention.color)
-    setIsModalOpen(true)
+    setIsIntentionModalOpen(true)
   }
   
   // Save intention (new or edited)
@@ -188,7 +189,7 @@ export function Sidebar() {
         }
       }
       
-      setIsModalOpen(false)
+      setIsIntentionModalOpen(false)
     } catch (error) {
       console.error('Failed to save intention:', error)
     }
@@ -209,224 +210,231 @@ export function Sidebar() {
         })
       }
       
-      setIsModalOpen(false)
+      setIsIntentionModalOpen(false)
     } catch (error) {
       console.error('Failed to delete intention:', error)
     }
   }
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-background">
-      <div className="flex h-14 items-center border-b gap-2 px-4">
-        <Image src="/alk-city.svg" alt="Sagacity" width={40} height={40} />
-        <h1 className={`text-2xl ${eb.className}`}>Sagacity</h1>
-      </div>
-      <nav className="flex-1 space-y-1 p-2">
-        {sidebarItems.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon
+    <>
+      <div className="flex h-screen w-64 flex-col border-r bg-background">
+        <div className="flex h-14 items-center border-b gap-2 px-4">
+          <Image src="/alk-city.svg" alt="Sagacity" width={40} height={40} />
+          <h1 className={`text-2xl ${eb.className}`}>Sagacity</h1>
+        </div>
+        <nav className="flex-1 space-y-1 p-2">
+          {sidebarItems.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
                 className={cn(
-                  "mr-3 h-5 w-5",
+                  "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "text-foreground"
-                    : "text-muted-foreground group-hover:text-foreground"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
-              />
-              {item.name}
-            </Link>
-          )
-        })}
-
-        {/* Daily Tasks Section */}
-        <div className="pt-6 px-3">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">Daily Tasks</h3>
-          </div>
-          <div className="space-y-2">
-            {dailyTasks.map((task) => (
-              <div key={task._id} className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
+              >
+                <item.icon
                   className={cn(
-                    "size-5 p-0",
-                    task.completed && "text-emerald-500"
+                    "mr-3 h-5 w-5",
+                    isActive
+                      ? "text-foreground"
+                      : "text-muted-foreground group-hover:text-foreground"
                   )}
-                  onClick={() => toggleTaskCompletion({ id: task._id })}
-                >
-                  <div className={cn(
-                    "size-4 rounded border-2",
-                    task.completed ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground"
-                  )}>
-                    {task.completed && (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="size-3 text-white"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                />
+                {item.name}
+              </Link>
+            )
+          })}
+
+          {/* Daily Tasks Section */}
+          <div className="pt-6 px-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">Daily Tasks</h3>
+            </div>
+            <div className="space-y-2">
+              {dailyTasks.map((task) => (
+                <div key={task._id} className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "size-5 p-0",
+                      task.completed && "text-emerald-500"
                     )}
-                  </div>
-                </Button>
-                <span className={cn(
-                  "flex-1 text-sm",
-                  task.completed && "line-through text-muted-foreground"
-                )}>
-                  {task.text}
-                </span>
+                    onClick={() => toggleTaskCompletion({ id: task._id })}
+                  >
+                    <div className={cn(
+                      "size-4 rounded border-2",
+                      task.completed ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground"
+                    )}>
+                      {task.completed && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-3 text-white"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </Button>
+                  <span className={cn(
+                    "flex-1 text-sm",
+                    task.completed && "line-through text-muted-foreground"
+                  )}>
+                    {task.text}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => deleteTask({ id: task._id })}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  placeholder="Add a task..."
+                  className="flex-1"
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddDailyTask()}
+                />
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
-                  className="size-6 text-muted-foreground hover:text-destructive"
-                  onClick={() => deleteTask({ id: task._id })}
+                  onClick={handleAddDailyTask}
                 >
-                  <X className="size-4" />
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
-            ))}
-            <div className="flex gap-2">
-              <Input
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder="Add a task..."
-                className="flex-1"
-                onKeyPress={(e) => e.key === 'Enter' && handleAddDailyTask()}
-              />
-              <Button
-                variant="outline"
+            </div>
+          </div>
+        
+          {/* Intentions of the Month */}
+          <div className="pt-6 px-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Month</h3>
+              <Button 
+                variant="ghost" 
                 size="icon"
-                onClick={handleAddDailyTask}
+                className="size-6 rounded-full p-0"
+                onClick={() => handleAddIntention('monthly')}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4 text-muted-foreground" />
+                <span className="sr-only">Add monthly intention</span>
               </Button>
             </div>
+            <ul className="space-y-1">
+              {monthlyIntentions.map((intention) => {
+                const colorClasses = getColorClasses(intention.color)
+                return (
+                  <li 
+                    key={intention._id}
+                    className={cn(
+                      "text-sm rounded-md py-1 px-2 border cursor-pointer",
+                      colorClasses.bg,
+                      colorClasses.text,
+                      colorClasses.border
+                    )}
+                    onClick={() => handleEditIntention(intention, 'monthly')}
+                  >
+                    {intention.text}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
-        </div>
-      
-        {/* Intentions of the Month */}
-        <div className="pt-6 px-3">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Month</h3>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="size-6 rounded-full p-0"
-              onClick={() => handleAddIntention('monthly')}
-            >
-              <Plus className="size-4 text-muted-foreground" />
-              <span className="sr-only">Add monthly intention</span>
-            </Button>
-          </div>
-          <ul className="space-y-1">
-            {monthlyIntentions.map((intention) => {
-              const colorClasses = getColorClasses(intention.color)
-              return (
-                <li 
-                  key={intention._id}
-                  className={cn(
-                    "text-sm rounded-md py-1 px-2 border cursor-pointer",
-                    colorClasses.bg,
-                    colorClasses.text,
-                    colorClasses.border
-                  )}
-                  onClick={() => handleEditIntention(intention, 'monthly')}
-                >
-                  {intention.text}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-        
-        {/* Intentions of the Week */}
-        <div className="pt-6 px-3">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Week</h3>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="size-6 rounded-full p-0"
-              onClick={() => handleAddIntention('weekly')}
-            >
-              <Plus className="size-4 text-muted-foreground" />
-              <span className="sr-only">Add weekly intention</span>
-            </Button>
-          </div>
-          <ul className="space-y-1">
-            {weeklyIntentions.map((intention) => {
-              const colorClasses = getColorClasses(intention.color)
-              return (
-                <li 
-                  key={intention._id}
-                  className={cn(
-                    "text-sm rounded-md py-1 px-2 border cursor-pointer",
-                    colorClasses.bg,
-                    colorClasses.text,
-                    colorClasses.border
-                  )}
-                  onClick={() => handleEditIntention(intention, 'weekly')}
-                >
-                  {intention.text}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-
-        {/* Focus Mode Section - Updated */}
-        <div className="pt-6 px-3">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">Focus Mode</h3>
-          </div>
-          <Button
-            variant="secondary"
-            className="w-full justify-start"
-            onClick={openFocusModal}
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            Start Focus Session
-          </Button>
-        </div>
-      </nav>
-      
-      {/* User Profile or Sign In */}
-      <div className="border-t p-4">
-        {isSignedIn ? (
-          <div className="flex items-center gap-3">
-            <UserButton afterSignOutUrl="/" />
-            <div className="text-sm">
-              <p className="font-medium">{user.fullName || user.username}</p>
-              <p className="text-muted-foreground text-xs">{user.primaryEmailAddress?.emailAddress}</p>
+          
+          {/* Intentions of the Week */}
+          <div className="pt-6 px-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">Intentions of the Week</h3>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="size-6 rounded-full p-0"
+                onClick={() => handleAddIntention('weekly')}
+              >
+                <Plus className="size-4 text-muted-foreground" />
+                <span className="sr-only">Add weekly intention</span>
+              </Button>
             </div>
+            <ul className="space-y-1">
+              {weeklyIntentions.map((intention) => {
+                const colorClasses = getColorClasses(intention.color)
+                return (
+                  <li 
+                    key={intention._id}
+                    className={cn(
+                      "text-sm rounded-md py-1 px-2 border cursor-pointer",
+                      colorClasses.bg,
+                      colorClasses.text,
+                      colorClasses.border
+                    )}
+                    onClick={() => handleEditIntention(intention, 'weekly')}
+                  >
+                    {intention.text}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
-        ) : (
-          <SignInButton mode="modal">
-            <button className="w-full bg-white text-black border border-gray-200 rounded-md py-2 px-4 text-sm font-medium hover:bg-gray-50 transition-colors">
-              Sign In
-            </button>
-          </SignInButton>
-        )}
+
+          {/* Focus Mode Section - Updated */}
+          <div className="pt-6 px-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">Focus Mode</h3>
+            </div>
+            <Button
+              variant="secondary"
+              className="w-full justify-start"
+              onClick={openFocusModal}
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Start Focus Session
+            </Button>
+          </div>
+        </nav>
+        
+        {/* User Profile or Sign In */}
+        <div className="border-t p-4">
+          {isSignedIn ? (
+            <div className="flex items-center gap-3">
+              <UserButton afterSignOutUrl="/" />
+              <div className="text-sm">
+                <p className="font-medium">{user.fullName || user.username}</p>
+                <p className="text-muted-foreground text-xs">{user.primaryEmailAddress?.emailAddress}</p>
+              </div>
+            </div>
+          ) : (
+            <SignInButton mode="modal">
+              <button className="w-full bg-white text-black border border-gray-200 rounded-md py-2 px-4 text-sm font-medium hover:bg-gray-50 transition-colors">
+                Sign In
+              </button>
+            </SignInButton>
+          )}
+        </div>
       </div>
       
+      {/* Focus Modal - Now part of the Sidebar for global access */}
+      <Dialog open={isFocusModalOpen} onOpenChange={closeFocusModal}>
+        <FocusModal />
+      </Dialog>
+      
       {/* Intention Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isIntentionModalOpen} onOpenChange={setIsIntentionModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
@@ -490,7 +498,7 @@ export function Sidebar() {
               </Button>
             )}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              <Button variant="outline" onClick={() => setIsIntentionModalOpen(false)}>
                 Cancel
               </Button>
               <Button onClick={handleSaveIntention}>
@@ -500,6 +508,6 @@ export function Sidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 } 

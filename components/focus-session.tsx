@@ -86,12 +86,14 @@ export function FocusSession({ className }: { className?: string }) {
     setSelectedEmotion,
     reflectionText,
     setReflectionText,
-    createCalendarEvent
+    createCalendarEvent,
+    timeLeft,
+    updateTimeLeft
   } = useFocus();
   
-  const [timeLeft, setTimeLeft] = useState("");
   const hasCompletedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
   // Initialize audio on mount
   useEffect(() => {
@@ -104,32 +106,71 @@ export function FocusSession({ className }: { className?: string }) {
     };
   }, []);
 
-  // Set initial time
-  useEffect(() => {
-    if (sessionState) {
-      setTimeLeft(sessionState.duration);
-    }
-  }, [sessionState]);
-
-  // Timer logic
+  // Timer logic with Web Worker
   useEffect(() => {
     if (!sessionState) return;
     
-    let interval: NodeJS.Timeout;
-    
-    // Reset completion state when status changes to running
-    if (sessionState.status === 'running') {
-      hasCompletedRef.current = false;
-    }
-    
-    if (sessionState.status === 'running') {
-      interval = setInterval(() => {
-        setTimeLeft(current => {
-          const [mins, secs] = current.split(':').map(Number);
-          const totalSeconds = mins * 60 + secs - 1;
+    // Create a Web Worker for handling timers reliably across tab switches
+    if (!workerRef.current && typeof window !== 'undefined') {
+      // Define the worker in a separate function that's only called client-side
+      const createWorker = () => {
+        const workerCode = `
+          let timerInterval;
           
-          if (totalSeconds <= 0) {
-            clearInterval(interval);
+          self.onmessage = function(e) {
+            const { type, duration, status } = e.data;
+            
+            if (type === 'start') {
+              clearInterval(timerInterval);
+              
+              // Parse the duration into minutes and seconds
+              const [mins, secs] = duration.split(':').map(Number);
+              let totalSeconds = mins * 60 + secs;
+              
+              if (status === 'running') {
+                timerInterval = setInterval(() => {
+                  totalSeconds--;
+                  
+                  if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    self.postMessage({ type: 'completed', timeLeft: '00:00' });
+                    return;
+                  }
+                  
+                  const newMins = Math.floor(totalSeconds / 60);
+                  const newSecs = totalSeconds % 60;
+                  const timeLeft = \`\${newMins.toString().padStart(2, '0')}:\${newSecs.toString().padStart(2, '0')}\`;
+                  
+                  self.postMessage({ type: 'tick', timeLeft });
+                }, 1000);
+              }
+            } else if (type === 'stop') {
+              clearInterval(timerInterval);
+            }
+          };
+        `;
+        
+        try {
+          const blob = new Blob([workerCode], { type: 'application/javascript' });
+          return new Worker(URL.createObjectURL(blob));
+        } catch (error) {
+          console.error("Error creating Web Worker:", error);
+          return null;
+        }
+      };
+      
+      // Safely create the worker
+      const worker = createWorker();
+      workerRef.current = worker;
+      
+      if (worker) {
+        worker.onmessage = (e) => {
+          const { type, timeLeft: newTimeLeft } = e.data;
+          
+          if (type === 'tick') {
+            updateTimeLeft(newTimeLeft);
+          } else if (type === 'completed') {
+            updateTimeLeft(newTimeLeft);
             // Only trigger completion once
             if (!hasCompletedRef.current) {
               hasCompletedRef.current = true;
@@ -140,18 +181,46 @@ export function FocusSession({ className }: { className?: string }) {
               // Use setTimeout to avoid state updates during render
               setTimeout(() => updateSessionStatus('completed'), 0);
             }
-            return '00:00';
           }
-          
-          const newMins = Math.floor(totalSeconds / 60);
-          const newSecs = totalSeconds % 60;
-          return `${newMins.toString().padStart(2, '0')}:${newSecs.toString().padStart(2, '0')}`;
-        });
-      }, 1000);
+        };
+      }
     }
     
-    return () => clearInterval(interval);
-  }, [sessionState, updateSessionStatus]);
+    // Reset completion state when status changes to running
+    if (sessionState.status === 'running') {
+      hasCompletedRef.current = false;
+    }
+    
+    // Start or stop the worker based on session status
+    if (workerRef.current) {
+      if (sessionState.status === 'running') {
+        workerRef.current.postMessage({
+          type: 'start',
+          duration: timeLeft,
+          status: sessionState.status
+        });
+      } else {
+        workerRef.current.postMessage({ type: 'stop' });
+      }
+    }
+    
+    // Clean up the worker when the component unmounts
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.postMessage({ type: 'stop' });
+      }
+    };
+  }, [sessionState, updateSessionStatus, timeLeft, updateTimeLeft]);
+
+  // Clean up worker on unmount
+  useEffect(() => {
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
+  }, []);
 
   if (!sessionState) return null;
 

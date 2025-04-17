@@ -7,7 +7,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { CalendarEvent } from '@/components/event-calendar';
 import { EventHistory } from '@/components/event-history';
 import { eb } from '@/lib/fonts'; 
@@ -56,7 +56,19 @@ export default function Chat() {
   const createEvent = useMutation(api.events.create);
   const processedToolCalls = useRef(new Set<string>());
   const formRef = useRef<HTMLFormElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showDirectSession, setShowDirectSession] = useState(false);
+  const hasStartedConversation = messages.length > 0;
+
+  // Auto-scroll to the latest message whenever messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, showDirectSession]);
 
   // Wrap the handleSubmit to also close the direct session
   const wrappedHandleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -109,7 +121,7 @@ export default function Chat() {
     <div className="flex flex-col h-full max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-10"></h1>
       
-      <div className="flex-1 overflow-auto mb-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-auto mb-4">
         {messages.length === 0 && !showDirectSession && (
           <div className="flex items-center justify-center h-full">
             <h2 className={`${eb.className} text-3xl  text-muted-foreground/70`}>Execute Plan Focus</h2>
@@ -248,29 +260,33 @@ export default function Chat() {
             </div>
           </div>
         ))}
+        {/* Invisible element to scroll to */}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Action Buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button
-          onClick={handleStartFocusSession}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('emerald').bg} ${getColorClasses('emerald').text} ${getColorClasses('emerald').border} border`}
-        >
-          Start Focus Session
-        </button>
-        <button
-          onClick={handleLastSevenDays}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('violet').bg} ${getColorClasses('violet').text} ${getColorClasses('violet').border} border`}
-        >
-          What happened in the last 7 days
-        </button>
-        <button
-          onClick={handleAddEvent}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('sky').bg} ${getColorClasses('sky').text} ${getColorClasses('sky').border} border`}
-        >
-          Add event
-        </button>
-      </div>
+      {/* Quick Action Buttons - Only show if no conversation started */}
+      {!hasStartedConversation && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={handleStartFocusSession}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('emerald').bg} ${getColorClasses('emerald').text} ${getColorClasses('emerald').border} border`}
+          >
+            Start Focus Session
+          </button>
+          <button
+            onClick={handleLastSevenDays}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('violet').bg} ${getColorClasses('violet').text} ${getColorClasses('violet').border} border`}
+          >
+            What happened in the last 7 days
+          </button>
+          <button
+            onClick={handleAddEvent}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${getColorClasses('sky').bg} ${getColorClasses('sky').text} ${getColorClasses('sky').border} border`}
+          >
+            Add event
+          </button>
+        </div>
+      )}
 
       <form ref={formRef} onSubmit={wrappedHandleSubmit} className="relative">
         <input

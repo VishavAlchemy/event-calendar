@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, useContext, ReactNode } from "react";
+import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { CalendarEvent, EventColor } from "@/components/event-calendar";
 
 type Emotion = "Fulfilled" | "Flow" | "Calm" | "Courage" | "Stress" | "Afraid";
@@ -17,6 +17,7 @@ interface FocusContextType {
   sessionState: SessionState | null;
   selectedEmotion: Emotion | null;
   reflectionText: string;
+  timeLeft: string;
   openFocusModal: () => void;
   closeFocusModal: () => void;
   startSession: (tasks: string[], duration: string) => void;
@@ -25,6 +26,7 @@ interface FocusContextType {
   setSelectedEmotion: (emotion: Emotion | null) => void;
   setReflectionText: (text: string) => void;
   createCalendarEvent: () => Promise<void>;
+  updateTimeLeft: (time: string) => void;
 }
 
 const defaultContext: FocusContextType = {
@@ -32,6 +34,7 @@ const defaultContext: FocusContextType = {
   sessionState: null,
   selectedEmotion: null,
   reflectionText: "",
+  timeLeft: "",
   openFocusModal: () => {},
   closeFocusModal: () => {},
   startSession: () => {},
@@ -40,6 +43,7 @@ const defaultContext: FocusContextType = {
   setSelectedEmotion: () => {},
   setReflectionText: () => {},
   createCalendarEvent: async () => {},
+  updateTimeLeft: () => {},
 };
 
 export const FocusContext = createContext<FocusContextType>(defaultContext);
@@ -59,6 +63,14 @@ export function FocusProvider({
   const [sessionState, setSessionState] = useState<SessionState | null>(null);
   const [selectedEmotion, setSelectedEmotion] = useState<Emotion | null>(null);
   const [reflectionText, setReflectionText] = useState("");
+  const [timeLeft, setTimeLeft] = useState("");
+
+  // Update timeLeft when session changes or starts
+  useEffect(() => {
+    if (sessionState) {
+      setTimeLeft(sessionState.duration);
+    }
+  }, [sessionState?.duration]);
 
   const openFocusModal = () => {
     setIsModalOpen(true);
@@ -75,6 +87,7 @@ export function FocusProvider({
       status: 'running',
       startTime: new Date(),
     });
+    setTimeLeft(duration);
     setIsModalOpen(false);
   };
 
@@ -88,6 +101,11 @@ export function FocusProvider({
     setSessionState(null);
     setSelectedEmotion(null);
     setReflectionText("");
+    setTimeLeft("");
+  };
+
+  const updateTimeLeft = (time: string) => {
+    setTimeLeft(time);
   };
 
   const createCalendarEvent = async () => {
@@ -135,6 +153,7 @@ export function FocusProvider({
         sessionState,
         selectedEmotion,
         reflectionText,
+        timeLeft,
         openFocusModal,
         closeFocusModal,
         startSession,
@@ -143,6 +162,7 @@ export function FocusProvider({
         setSelectedEmotion,
         setReflectionText,
         createCalendarEvent,
+        updateTimeLeft,
       }}
     >
       {children}

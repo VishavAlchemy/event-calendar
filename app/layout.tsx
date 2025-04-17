@@ -15,6 +15,8 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { Sidebar } from "@/components/ui/sidebar"
 import { FocusProvider } from "@/contexts/focus-context"
 import { CalendarEvent } from "@/components/event-calendar"
+import { FocusSession } from "@/components/focus-session"
+import { FocusTimer } from "@/components/focus-timer"
 
 const fontSans = Geist({
   variable: "--font-sans",
@@ -72,9 +74,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen">
         <Sidebar />
         <main className="flex-1 overflow-auto">
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+            <FocusTimer />
+          </div>
           {children}
         </main>
       </div>
+      <FocusSession />
       <Toaster />
     </FocusProvider>
   );
