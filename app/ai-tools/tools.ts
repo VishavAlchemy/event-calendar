@@ -48,70 +48,138 @@ export const calendarTool = createTool({
     color: z.string().optional().default('blue').describe('Color of the event'),
   }),
   execute: async function ({ title, description, startDate, startTime, duration, location, allDay, color }) {
-    // Get current date in EST
-    const now = new Date();
-    const estOffset = -4; // EST offset from UTC
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const TODAY_REFERENCE = new Date(utc + (3600000 * estOffset));
+    // Get ACTUAL current date - don't try to manually calculate timezone offsets
+    const TODAY_REFERENCE = new Date();
     
+    console.log("Current date:", TODAY_REFERENCE.toISOString());
+    
+    // Create a copy for date calculations
+    const referenceDateCopy = new Date(TODAY_REFERENCE);
     // Reset time to start of day
-    TODAY_REFERENCE.setHours(0, 0, 0, 0);
+    referenceDateCopy.setHours(0, 0, 0, 0);
     
     let baseDate;
     
-    switch (startDate.toLowerCase()) {
-      case 'today':
-        baseDate = new Date(TODAY_REFERENCE);
-        break;
-      case 'tomorrow':
-        baseDate = new Date(TODAY_REFERENCE);
-        baseDate.setDate(TODAY_REFERENCE.getDate() + 1);
-        break;
-      case 'next week':
-        baseDate = new Date(TODAY_REFERENCE);
-        baseDate.setDate(TODAY_REFERENCE.getDate() + 7);
-        break;
-      default:
-        // Try to parse as YYYY-MM-DD
-        baseDate = new Date(startDate);
-        if (isNaN(baseDate.getTime())) {
-          throw new Error('Invalid date format');
+    // Handle day names (Monday, Tuesday, etc.)
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const lowerStartDate = startDate.toLowerCase();
+    
+    if (daysOfWeek.includes(lowerStartDate)) {
+      // Find the target day index
+      const targetDayIndex = daysOfWeek.indexOf(lowerStartDate);
+      
+      // Get current day index
+      const currentDayIndex = TODAY_REFERENCE.getDay();
+      
+      // Calculate days to add (ensuring we get the NEXT occurrence of the day)
+      let daysToAdd = targetDayIndex - currentDayIndex;
+      if (daysToAdd <= 0) {
+        daysToAdd += 7; // If it's today or earlier in the week, go to next week
+      }
+      
+      baseDate = new Date(referenceDateCopy);
+      baseDate.setDate(referenceDateCopy.getDate() + daysToAdd);
+      console.log(`Calculated next ${lowerStartDate} as:`, baseDate.toISOString());
+    } else if (lowerStartDate.includes('next') && daysOfWeek.some(day => lowerStartDate.includes(day))) {
+      // Handle "next monday", "next tuesday", etc.
+      const dayName = daysOfWeek.find(day => lowerStartDate.includes(day));
+      if (dayName) {
+        const targetDayIndex = daysOfWeek.indexOf(dayName);
+        const currentDayIndex = TODAY_REFERENCE.getDay();
+        
+        // Calculate days to add (for "next X", we always go to next week)
+        let daysToAdd = targetDayIndex - currentDayIndex;
+        if (daysToAdd <= 0) {
+          daysToAdd += 7;
+        } else {
+          daysToAdd += 7; // For "next X", add an additional week
         }
+        
+        baseDate = new Date(referenceDateCopy);
+        baseDate.setDate(referenceDateCopy.getDate() + daysToAdd);
+        console.log(`Calculated next ${dayName} as:`, baseDate.toISOString());
+      } else {
+        // Fallback if we couldn't extract a valid day name
+        baseDate = new Date(referenceDateCopy);
+        console.log(`Couldn't parse day in "${lowerStartDate}", using today:`, baseDate.toISOString());
+      }
+    } else {
+      switch (lowerStartDate) {
+        case 'today':
+          baseDate = new Date(referenceDateCopy);
+          break;
+        case 'tomorrow':
+          baseDate = new Date(referenceDateCopy);
+          baseDate.setDate(referenceDateCopy.getDate() + 1);
+          break;
+        case 'next week':
+          baseDate = new Date(referenceDateCopy);
+          baseDate.setDate(referenceDateCopy.getDate() + 7);
+          break;
+        default:
+          try {
+            // Try to parse as YYYY-MM-DD or MM/DD/YYYY or other formats
+            baseDate = new Date(startDate);
+            if (isNaN(baseDate.getTime())) {
+              throw new Error(`Invalid date format: ${startDate}`);
+            }
+            // Ensure we're not using a date from the past year
+            const currentYear = TODAY_REFERENCE.getFullYear();
+            if (baseDate.getFullYear() < currentYear) {
+              baseDate.setFullYear(currentYear);
+            }
+          } catch (e) {
+            console.error("Date parsing error:", e);
+            throw new Error(`Cannot parse date: ${startDate}`);
+          }
+      }
+      console.log(`Calculated date for ${lowerStartDate} as:`, baseDate.toISOString());
     }
 
     // Parse the time string
     let hours = 0;
     let minutes = 0;
 
-    // Handle different time formats (e.g., "2:30 PM", "14:30", "2PM")
-    const timeStr = startTime.toLowerCase().trim();
-    const isPM = timeStr.includes('pm');
-    const isAM = timeStr.includes('am');
+    try {
+      // Handle different time formats (e.g., "2:30 PM", "14:30", "2PM")
+      const timeStr = startTime.toLowerCase().trim();
+      const isPM = timeStr.includes('pm');
+      const isAM = timeStr.includes('am');
 
-    // Remove AM/PM and split time
-    const timeParts = timeStr
-      .replace(/[ap]m/i, '')
-      .trim()
-      .split(':');
+      // Remove AM/PM and split time
+      const timeParts = timeStr
+        .replace(/[ap]m/i, '')
+        .trim()
+        .split(':');
 
-    hours = parseInt(timeParts[0], 10);
-    minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      hours = parseInt(timeParts[0], 10);
+      minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
 
-    // Convert to 24-hour format if PM
-    if (isPM && hours !== 12) {
-      hours += 12;
-    } else if (isAM && hours === 12) {
-      hours = 0;
+      // Convert to 24-hour format if PM
+      if (isPM && hours !== 12) {
+        hours += 12;
+      } else if (isAM && hours === 12) {
+        hours = 0;
+      }
+
+      console.log(`Parsed time: ${hours}:${minutes} (${isPM ? 'PM' : 'AM'})`);
+    } catch (e) {
+      console.error("Time parsing error:", e);
+      throw new Error(`Cannot parse time: ${startTime}`);
     }
 
     // Set the time components on our base date
     baseDate.setHours(hours, minutes, 0, 0);
+    console.log("Final date with time:", baseDate.toISOString());
 
     // Create start and end dates
     const start = baseDate;
     const end = new Date(start.getTime() + duration * 60 * 1000);
 
-    // Return the event details with the original EST time
+    console.log("Event start:", start.toISOString());
+    console.log("Event end:", end.toISOString());
+
+    // Return the event details with the original time
     return {
       title,
       description: description || "",
@@ -124,8 +192,9 @@ export const calendarTool = createTool({
       originalTime: {
         hours,
         minutes,
-        isPM,
-        timezone: "EST"
+        isPM: hours >= 12,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        currentSystemTime: new Date().toISOString()
       }
     };
   },
